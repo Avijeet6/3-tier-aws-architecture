@@ -39,7 +39,7 @@ App tier: PHP + php-fpm servers (private App subnets) - Auto Scaling Group
 Amazon RDS MySQL (private DB subnets)
 ```
 
-Add your architecture diagram here: `![Architecture](diagrams/architecture.png)`
+   ![3-Tier AWS Architecture](screenshots/00-architecture.png)
 
 ### Network plan (VPC `10.0.0.0/16`)
 
