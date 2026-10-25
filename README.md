@@ -103,7 +103,7 @@ The build goes **bottom to top** because each tier needs an address from the tie
 | | |
 |---|---|
 | VPC created | ![VPC](screenshots/01-vpc-created.png) |
-| Eight subnets in two AZs | ![Subnets](screenshots/02-eight-subnets.png) |
+| Eight subnets in two AZs | ![Subnets](screenshots/02-subnets.png) |
 | VPC resource map | ![Resource map](screenshots/03-resource-map.png) |
 | Public route to Internet Gateway | ![Public route](screenshots/04-public-route-table.png) |
 
@@ -111,8 +111,10 @@ The build goes **bottom to top** because each tier needs an address from the tie
 | | |
 |---|---|
 | All security groups | ![SG list](screenshots/05-security-groups-list.png) |
-| Chained inbound rules | ![SG rules](screenshots/06-sg-chain-rules.png) |
-
+| Chained inbound rule 1 (Web-ALB-SG ID into inbound of Web-EC2-SG)| ![SG rules](screenshots/06-sg-chain-rules-1.png) |
+ | Chained inbound rules 2 (Web-EC2-SG ID into inbound of App-ALB-SG) | ![SG rules](screenshots/06-sg-chain-rules-2.png) |
+ | Chained inbound rule 3 (App-ALB-SG ID into inbound of App-EC2-SG) | ![SG rules](screenshots/06-sg-chain-rules-3.png) |
+ | Chained inbound rule 4 (App-EC2-SG into inbound of DB-SG) | ![SG rules](screenshots/06-sg-chain-rules-4.png) |
 ### Database
 | | |
 |---|---|
@@ -142,11 +144,24 @@ The build goes **bottom to top** because each tier needs an address from the tie
 
 ## 7. Problems I faced and what I learned
 
-> Add 3 to 5 of your own real problems here. Employers like this part the most. Use this format:
+### 1-Problem: My internet-facing load balancer was placed in the private Web subnets
+- **Problem:** I created the internet-facing Application Load Balancer from the Auto Scaling group wizard and selected the Web subnets (private) instead of the Public subnets. The load balancer was created and showed as Active, but the web page could not be opened from my browser using its DNS name.
+- **Why it happened:** A subnet is public only if its route table has a route (`0.0.0.0/0`) to an Internet Gateway. The Web subnets only have the local route, so a load balancer placed there has no path to or from the internet, even though its scheme says "internet-facing". The scheme decides the type of address the load balancer gets, but the subnet's route table decides whether that address is actually reachable.
+- **How I found it:** I checked the load balancer's Network mapping and then the route table of each subnet it used. The subnets had no route to the Internet Gateway, while PublicSubnet1 and PublicSubnet2 did.
+- **How I fixed it:** I changed the load balancer's subnets to PublicSubnet1 and PublicSubnet2 (one per AZ), and then the site opened through the ALB DNS name.
 
-- **Problem:** (what went wrong, for example targets showing Unhealthy)
-- **Why it happened:** (the root cause in your own words)
-- **How I fixed it:** (what you checked and changed)
+### What I learned
+- "Public" and "private" come from the **route table**, not from the name of a subnet or the load balancer scheme.
+- An internet-facing load balancer must sit in **public subnets in at least two AZs**, while the servers behind it can stay private.
+- When something is unreachable, check in order: subnet and route table, then security groups, then the app itself.
+- Build the infrastructure **bottom to top**, but write the security rules **top to bottom**.
+- A security group should use another security group as its source, not an IP address, because Auto Scaling servers get new IPs all the time.
+- Never change a live server. Change a development server, create a new AMI and let Auto Scaling replace the old servers.
+
+### 2-Problem: The load balancer had the wrong security group
+- **Problem:** [Targets showed Unhealthy / the page returned an error.]
+- **Why it happened:** The Auto Scaling wizard attached the launch template's security group to the new load balancer. My security group chain only allows each tier to receive traffic from the load balancer's own group, so the traffic was blocked.
+- **How I fixed it:** I opened the load balancer's Security tab, removed the wrong group and attached `WebAlbSG` (and `AppAlbSG` for the internal one).
 
 What I learned:
 - Why each tier needs its own security group, with another security group as the source instead of an IP address
@@ -171,4 +186,4 @@ All resources were deleted after testing to avoid charges: Auto Scaling groups, 
 ## 10. Author
 
 **Avijeet Mhaske**
-LinkedIn: (add link) | GitHub: (add link)
+LinkedIn: https://www.linkedin.com/in/avijeet-mhaske | GitHub: https://github.com/Avijeet6
